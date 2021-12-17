@@ -1,26 +1,29 @@
 package memtsdb
 
-import "sync"
+import (
+	"sync"
+	"time"
+)
 
 type Shard interface {
 	Insert(point Point)
 	Query(tag Tag) []Point
 }
 
-type ShardImpl struct {
+type shard struct {
 	points []Point
 	// {key: {value: [offset1, offset2]}}
 	index map[string]map[string][]int
 	l     sync.RWMutex
 }
 
-func NewPool() *ShardImpl {
-	return &ShardImpl{
+func NewShard() *shard {
+	return &shard{
 		index: map[string]map[string][]int{},
 	}
 }
 
-func (s *ShardImpl) Insert(point Point) {
+func (s *shard) Insert(point Point) {
 	s.l.Lock()
 	defer s.l.Unlock()
 
@@ -32,7 +35,7 @@ func (s *ShardImpl) Insert(point Point) {
 	}
 }
 
-func (s *ShardImpl) updateIndex(offset int, tag Tag) {
+func (s *shard) updateIndex(offset int, tag Tag) {
 	if keyM, ok := s.index[tag.Key]; ok {
 		if offsets, ok := keyM[tag.Value]; ok {
 			keyM[tag.Value] = append(offsets, offset)
@@ -46,7 +49,7 @@ func (s *ShardImpl) updateIndex(offset int, tag Tag) {
 	s.index[tag.Key] = map[string][]int{tag.Value: {offset}}
 }
 
-func (s *ShardImpl) Query(tag Tag) []Point {
+func (s *shard) Query(tag Tag, min, max time.Time) []Point {
 	s.l.RLock()
 	defer s.l.RUnlock()
 
@@ -62,7 +65,12 @@ func (s *ShardImpl) Query(tag Tag) []Point {
 
 	var ps []Point
 	for _, offset := range offsets {
-		ps = append(ps, s.points[offset])
+		p := s.points[offset]
+		if p.Time.Before(min) || p.Time.After(max) {
+			continue
+		}
+
+		ps = append(ps, p)
 	}
 
 	return ps
