@@ -7,8 +7,10 @@ import (
 
 type Shard interface {
 	Insert(point Point)
-	Query(tag Tag) []Point
+	Query(tag Tag, min, max time.Time) []Point
 }
+
+var _ Shard = (*shard)(nil)
 
 type shard struct {
 	points []Point

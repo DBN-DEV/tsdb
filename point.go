@@ -8,7 +8,8 @@ type Tag struct {
 }
 
 type Point struct {
-	Tags  []Tag
-	Time  time.Time
-	Field int64
+	Measurement string
+	Tags        []Tag
+	Time        time.Time
+	Field       int64
 }
