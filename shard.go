@@ -8,6 +8,7 @@ import (
 type Shard interface {
 	Insert(point Point)
 	Query(tag Tag, min, max time.Time) []Point
+	Clear()
 }
 
 var _ Shard = (*shard)(nil)
@@ -16,7 +17,7 @@ type shard struct {
 	points []Point
 	// {key: {value: [offset1, offset2]}}
 	index map[string]map[string][]int
-	l     sync.RWMutex
+	mu    sync.RWMutex
 }
 
 func NewShard() *shard {
@@ -26,8 +27,8 @@ func NewShard() *shard {
 }
 
 func (s *shard) Insert(point Point) {
-	s.l.Lock()
-	defer s.l.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	offset := len(s.points)
 	s.points = append(s.points, point)
@@ -52,8 +53,8 @@ func (s *shard) updateIndex(offset int, tag Tag) {
 }
 
 func (s *shard) Query(tag Tag, min, max time.Time) []Point {
-	s.l.RLock()
-	defer s.l.RUnlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	keyM, ok := s.index[tag.Key]
 	if !ok {
@@ -76,4 +77,12 @@ func (s *shard) Query(tag Tag, min, max time.Time) []Point {
 	}
 
 	return ps
+}
+
+func (s *shard) Clear() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.points = s.points[:0]
+	s.index = make(map[string]map[string][]int)
 }

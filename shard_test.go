@@ -33,16 +33,30 @@ func TestShard_Query(t *testing.T) {
 
 	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 1, Time: time.Unix(1, 0)})
 	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 2, Time: time.Unix(2, 0)})
-	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 3, Time: time.Unix(10, 0)})
+	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 3, Time: time.Unix(3, 0)})
+	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 10, Time: time.Unix(10, 0)})
 
-	ps := s.Query(Tag{Key: "a", Value: "b"}, time.Unix(1, 0), time.Unix(2, 0))
+	ps := s.Query(Tag{Key: "a", Value: "b"}, time.Unix(2, 0), time.Unix(3, 0))
 	assert.Len(t, ps, 2)
-	assert.Equal(t, int64(1), ps[0].Field)
-	assert.Equal(t, int64(2), ps[1].Field)
+	assert.Equal(t, int64(2), ps[0].Field)
+	assert.Equal(t, int64(3), ps[1].Field)
 
 	ps = s.Query(Tag{Key: "g"}, time.Unix(1, 0), time.Unix(2, 0))
-	assert.Len(t, ps, 0)
+	assert.Empty(t, ps)
 
 	ps = s.Query(Tag{Key: "a", Value: "c"}, time.Unix(1, 0), time.Unix(2, 0))
-	assert.Len(t, ps, 0)
+	assert.Empty(t, ps)
+}
+
+func TestShard_Clear(t *testing.T) {
+	s := NewShard()
+
+	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 1, Time: time.Unix(1, 0)})
+	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 2, Time: time.Unix(2, 0)})
+	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 3, Time: time.Unix(3, 0)})
+
+	s.Clear()
+
+	assert.Empty(t, s.points)
+	assert.Empty(t, s.index)
 }
