@@ -1,4 +1,4 @@
-module pool
+module github.com/hhyhhy/memtsdb
 
 go 1.17
 
