@@ -1,9 +1,10 @@
 package memtsdb
 
 import (
-	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestShard_updateIndex(t *testing.T) {
