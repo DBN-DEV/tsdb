@@ -7,11 +7,6 @@ import (
 
 const _shardGroupDuration = 1 * time.Minute
 
-type TSDB interface {
-	InsertPoints(points []Point)
-	Query(tag Tag, min, max time.Time) []Point
-}
-
 type shardGroup struct {
 	// [min, max)
 	max   time.Time
@@ -20,7 +15,7 @@ type shardGroup struct {
 }
 
 func newShardGroup(t time.Time, round time.Duration) shardGroup {
-	sg := shardGroup{shard: NewShard()}
+	sg := shardGroup{shard: NewMemShard()}
 	sg.initTime(t, round)
 
 	return sg
@@ -70,7 +65,7 @@ func (g *shardGroup) have(min, max time.Time) bool {
 	return false
 }
 
-type tsdb struct {
+type TSDB struct {
 	rd time.Duration
 	mu sync.RWMutex
 
@@ -78,11 +73,11 @@ type tsdb struct {
 	emptySgs []shardGroup
 }
 
-func NewTSDB(retentionDuration time.Duration) TSDB {
-	return &tsdb{rd: retentionDuration}
+func NewTSDB(retentionDuration time.Duration) *TSDB {
+	return &TSDB{rd: retentionDuration}
 }
 
-func (t *tsdb) getShardGroup(ti time.Time) shardGroup {
+func (t *TSDB) getShardGroup(ti time.Time) shardGroup {
 	for _, sg := range t.sgs {
 		if sg.contains(ti) {
 			return sg
@@ -104,7 +99,7 @@ func (t *tsdb) getShardGroup(ti time.Time) shardGroup {
 	return sg
 }
 
-func (t *tsdb) InsertPoints(points []Point) {
+func (t *TSDB) InsertPoints(points []Point) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -114,7 +109,7 @@ func (t *tsdb) InsertPoints(points []Point) {
 	}
 }
 
-func (t *tsdb) Query(tag Tag, min, max time.Time) []Point {
+func (t *TSDB) Query(tag Tag, min, max time.Time) []Point {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 

@@ -8,7 +8,7 @@ import (
 )
 
 func TestShard_updateIndex(t *testing.T) {
-	s := NewShard()
+	s := NewMemShard()
 
 	s.updateIndex(1, Tag{Key: "a", Value: "b"})
 	assert.Equal(t, []int{1}, s.index["a"]["b"])
@@ -21,7 +21,7 @@ func TestShard_updateIndex(t *testing.T) {
 }
 
 func TestShard_Insert(t *testing.T) {
-	s := NewShard()
+	s := NewMemShard()
 
 	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}, {Key: "c", Value: "d"}}, Field: 0})
 	assert.Len(t, s.points, 1)
@@ -30,7 +30,7 @@ func TestShard_Insert(t *testing.T) {
 }
 
 func TestShard_Query(t *testing.T) {
-	s := NewShard()
+	s := NewMemShard()
 
 	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 1, Time: time.Unix(1, 0)})
 	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 2, Time: time.Unix(2, 0)})
@@ -50,7 +50,7 @@ func TestShard_Query(t *testing.T) {
 }
 
 func TestShard_Clear(t *testing.T) {
-	s := NewShard()
+	s := NewMemShard()
 
 	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 1, Time: time.Unix(1, 0)})
 	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 2, Time: time.Unix(2, 0)})

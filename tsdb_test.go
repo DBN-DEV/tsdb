@@ -58,13 +58,13 @@ func TestTSDB_getShardGroup(t *testing.T) {
 	{
 		// exited SG
 		sg := shardGroup{min: time.Unix(1, 0), max: time.Unix(5, 0)}
-		db := tsdb{sgs: []shardGroup{sg}}
+		db := TSDB{sgs: []shardGroup{sg}}
 		r := db.getShardGroup(time.Unix(4, 0))
 		assert.Equal(t, sg, r)
 	}
 	{
 		// empty sg
-		db := tsdb{}
+		db := TSDB{}
 		r := db.getShardGroup(time.Unix(5, 0))
 		assert.Equal(t, time.Unix(0, 0), r.min)
 		assert.Equal(t, time.Unix(60, 0), r.max)
@@ -73,7 +73,7 @@ func TestTSDB_getShardGroup(t *testing.T) {
 	{
 		// reuse sg
 		sg := shardGroup{min: time.Unix(1, 0), max: time.Unix(5, 0)}
-		db := tsdb{emptySgs: []shardGroup{sg}}
+		db := TSDB{emptySgs: []shardGroup{sg}}
 		r := db.getShardGroup(time.Unix(4, 0))
 		assert.Equal(t, time.Unix(0, 0), r.min)
 		assert.Equal(t, time.Unix(60, 0), r.max)
@@ -99,7 +99,7 @@ func TestTSDB_InsertPoints(t *testing.T) {
 	s.EXPECT().Insert(ps[0]).Times(1)
 	s.EXPECT().Insert(ps[1]).Times(1)
 
-	db := tsdb{sgs: []shardGroup{{min: time.Unix(0, 0), max: time.Unix(60, 0), shard: s}}}
+	db := TSDB{sgs: []shardGroup{{min: time.Unix(0, 0), max: time.Unix(60, 0), shard: s}}}
 	db.InsertPoints(ps)
 }
 
@@ -131,7 +131,7 @@ func TestTSDB_Query(t *testing.T) {
 		shard: s,
 	}}
 
-	db := tsdb{sgs: sgs}
+	db := TSDB{sgs: sgs}
 	r := db.Query(Tag{Key: "a", Value: "b"}, time.Unix(0, 0), time.Unix(30, 0))
 	assert.Equal(t, ps, r)
 }

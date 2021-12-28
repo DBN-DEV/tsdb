@@ -11,22 +11,22 @@ type Shard interface {
 	Clear()
 }
 
-var _ Shard = (*shard)(nil)
+var _ Shard = (*MemShard)(nil)
 
-type shard struct {
+type MemShard struct {
 	points []Point
 	// {key: {value: [offset1, offset2]}}
 	index map[string]map[string][]int
 	mu    sync.RWMutex
 }
 
-func NewShard() *shard {
-	return &shard{
+func NewMemShard() *MemShard {
+	return &MemShard{
 		index: map[string]map[string][]int{},
 	}
 }
 
-func (s *shard) Insert(point Point) {
+func (s *MemShard) Insert(point Point) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -38,7 +38,7 @@ func (s *shard) Insert(point Point) {
 	}
 }
 
-func (s *shard) updateIndex(offset int, tag Tag) {
+func (s *MemShard) updateIndex(offset int, tag Tag) {
 	if keyM, ok := s.index[tag.Key]; ok {
 		if offsets, ok := keyM[tag.Value]; ok {
 			keyM[tag.Value] = append(offsets, offset)
@@ -52,7 +52,7 @@ func (s *shard) updateIndex(offset int, tag Tag) {
 	s.index[tag.Key] = map[string][]int{tag.Value: {offset}}
 }
 
-func (s *shard) Query(tag Tag, min, max time.Time) []Point {
+func (s *MemShard) Query(tag Tag, min, max time.Time) []Point {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -79,7 +79,7 @@ func (s *shard) Query(tag Tag, min, max time.Time) []Point {
 	return ps
 }
 
-func (s *shard) Clear() {
+func (s *MemShard) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
