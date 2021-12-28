@@ -1,4 +1,4 @@
-module github.com/hhyhhy/memtsdb
+module github.com/hhyhhy/tsdb
 
 go 1.17
 

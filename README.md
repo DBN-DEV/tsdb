@@ -1,4 +1,4 @@
-# Memtsdb
+# tsdb
 
 [![codecov](https://codecov.io/gh/hhyhhy/memtsdb/branch/master/graph/badge.svg?token=ZZSOTQ65OX)](https://codecov.io/gh/hhyhhy/memtsdb)
 
