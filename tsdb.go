@@ -99,6 +99,25 @@ func (t *TSDB) getShardGroup(ti time.Time) shardGroup {
 	return sg
 }
 
+func (t *TSDB) gc() {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	now := time.Now()
+
+	var sgs []shardGroup
+	for _, sg := range t.sgs {
+		if now.Sub(sg.max) > t.rd {
+			sg.shard.Clear()
+			t.emptySgs = append(t.emptySgs, sg)
+		} else {
+			sgs = append(sgs, sg)
+		}
+	}
+
+	t.sgs = sgs
+}
+
 func (t *TSDB) InsertPoints(points []Point) {
 	t.mu.Lock()
 	defer t.mu.Unlock()

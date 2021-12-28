@@ -135,3 +135,24 @@ func TestTSDB_Query(t *testing.T) {
 	r := db.Query(Tag{Key: "a", Value: "b"}, time.Unix(0, 0), time.Unix(30, 0))
 	assert.Equal(t, ps, r)
 }
+
+func TestTSDB_GC(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	expiredS := NewMockShard(ctrl)
+	expiredS.EXPECT().Clear().Times(1)
+	expiredSg := shardGroup{max: time.Unix(100, 0), shard: expiredS}
+
+	s := NewMockShard(ctrl)
+	sg := shardGroup{max: time.Now().Add(1 * time.Hour), shard: s}
+
+	tsdb := TSDB{sgs: []shardGroup{expiredSg, sg}}
+	tsdb.gc()
+
+	assert.Len(t, tsdb.sgs, 1)
+	assert.Len(t, tsdb.emptySgs, 1)
+
+	assert.Equal(t, expiredSg, tsdb.emptySgs[0])
+	assert.Equal(t, &sg, &tsdb.sgs[0])
+}
