@@ -51,7 +51,8 @@ func TestShardGroup_have(t *testing.T) {
 }
 
 func TestNewTSDB(t *testing.T) {
-	_ = NewTSDB(1 * time.Minute)
+	tsdb := NewTSDB(1 * time.Minute)
+	tsdb.Stop()
 }
 
 func TestTSDB_getShardGroup(t *testing.T) {
@@ -145,9 +146,9 @@ func TestTSDB_GC(t *testing.T) {
 	expiredSg := shardGroup{max: time.Unix(100, 0), shard: expiredS}
 
 	s := NewMockShard(ctrl)
-	sg := shardGroup{max: time.Now().Add(1 * time.Hour), shard: s}
+	sg := shardGroup{max: time.Now().Add(time.Hour), shard: s}
 
-	tsdb := TSDB{sgs: []shardGroup{expiredSg, sg}}
+	tsdb := TSDB{rd: time.Minute, sgs: []shardGroup{expiredSg, sg}}
 	tsdb.gc()
 
 	assert.Len(t, tsdb.sgs, 1)
@@ -155,4 +156,38 @@ func TestTSDB_GC(t *testing.T) {
 
 	assert.Equal(t, expiredSg, tsdb.emptySgs[0])
 	assert.Equal(t, &sg, &tsdb.sgs[0])
+}
+
+func TestTSDB_Stop(t *testing.T) {
+	ch := make(chan struct{}, 1)
+
+	tsdb := TSDB{stopGC: ch}
+	tsdb.Stop()
+
+	assert.Eventually(t, func() bool {
+		<-ch
+		return true
+	}, time.Second, 100*time.Microsecond)
+}
+
+func TestTSDB_GCProc(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	expiredS := NewMockShard(ctrl)
+	expiredS.EXPECT().Clear().Times(1)
+	expiredSg := shardGroup{max: time.Unix(100, 0), shard: expiredS}
+
+	tsdb := TSDB{
+		rd:         time.Minute,
+		sgs:        []shardGroup{expiredSg},
+		sgDuration: time.Microsecond,
+		stopGC:     make(chan struct{}, 1),
+	}
+	go tsdb.gcProc()
+	time.Sleep(50 * time.Microsecond)
+	tsdb.Stop()
+
+	assert.Empty(t, tsdb.sgs)
+	assert.Len(t, tsdb.emptySgs, 1)
 }

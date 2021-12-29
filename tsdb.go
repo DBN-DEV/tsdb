@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-const _shardGroupDuration = 1 * time.Minute
+const _shardGroupDuration = time.Minute
 
 type shardGroup struct {
 	// [min, max)
@@ -69,12 +69,20 @@ type TSDB struct {
 	rd time.Duration
 	mu sync.RWMutex
 
+	stopGC chan struct{}
+
+	sgDuration time.Duration
+
 	sgs      []shardGroup
 	emptySgs []shardGroup
 }
 
 func NewTSDB(retentionDuration time.Duration) *TSDB {
-	return &TSDB{rd: retentionDuration}
+	t := &TSDB{rd: retentionDuration, stopGC: make(chan struct{}), sgDuration: _shardGroupDuration}
+
+	go t.gcProc()
+
+	return t
 }
 
 func (t *TSDB) getShardGroup(ti time.Time) shardGroup {
@@ -86,12 +94,12 @@ func (t *TSDB) getShardGroup(ti time.Time) shardGroup {
 
 	var sg shardGroup
 	if len(t.emptySgs) == 0 {
-		sg = newShardGroup(ti, _shardGroupDuration)
+		sg = newShardGroup(ti, t.sgDuration)
 	} else {
 		// pop a shardGroup from used groups
 		sg = t.emptySgs[len(t.emptySgs)-1]
 		t.emptySgs = t.emptySgs[:len(t.emptySgs)-1]
-		sg.initTime(ti, _shardGroupDuration)
+		sg.initTime(ti, t.sgDuration)
 	}
 
 	t.sgs = append(t.sgs, sg)
@@ -116,6 +124,24 @@ func (t *TSDB) gc() {
 	}
 
 	t.sgs = sgs
+}
+
+func (t *TSDB) gcProc() {
+	ticker := time.NewTicker(t.sgDuration)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ticker.C:
+			t.gc()
+		case <-t.stopGC:
+			return
+		}
+	}
+}
+
+func (t *TSDB) Stop() {
+	t.stopGC <- struct{}{}
 }
 
 func (t *TSDB) InsertPoints(points []Point) {
