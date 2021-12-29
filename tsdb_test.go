@@ -65,7 +65,7 @@ func TestTSDB_getShardGroup(t *testing.T) {
 	}
 	{
 		// empty sg
-		db := TSDB{}
+		db := TSDB{sgDuration: time.Minute}
 		r := db.getShardGroup(time.Unix(5, 0))
 		assert.Equal(t, time.Unix(0, 0), r.min)
 		assert.Equal(t, time.Unix(60, 0), r.max)
@@ -74,7 +74,7 @@ func TestTSDB_getShardGroup(t *testing.T) {
 	{
 		// reuse sg
 		sg := shardGroup{min: time.Unix(1, 0), max: time.Unix(5, 0)}
-		db := TSDB{emptySgs: []shardGroup{sg}}
+		db := TSDB{emptySgs: []shardGroup{sg}, sgDuration: time.Minute}
 		r := db.getShardGroup(time.Unix(4, 0))
 		assert.Equal(t, time.Unix(0, 0), r.min)
 		assert.Equal(t, time.Unix(60, 0), r.max)
@@ -182,10 +182,10 @@ func TestTSDB_GCProc(t *testing.T) {
 		rd:         time.Minute,
 		sgs:        []shardGroup{expiredSg},
 		sgDuration: time.Microsecond,
-		stopGC:     make(chan struct{}, 1),
+		stopGC:     make(chan struct{}),
 	}
 	go tsdb.gcProc()
-	time.Sleep(50 * time.Microsecond)
+	time.Sleep(500 * time.Microsecond)
 	tsdb.Stop()
 
 	assert.Empty(t, tsdb.sgs)
