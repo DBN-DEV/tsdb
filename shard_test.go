@@ -24,7 +24,7 @@ func TestShard_Insert(t *testing.T) {
 	s := NewMemShard()
 
 	s.Insert(Point{Tags: []Tag{{Key: "a", Value: "b"}, {Key: "c", Value: "d"}}, Field: 0})
-	assert.Len(t, s.points, 1)
+	assert.Len(t, s.values, 1)
 	assert.Equal(t, []int{0}, s.index["a"]["b"])
 	assert.Equal(t, []int{0}, s.index["c"]["d"])
 }
@@ -39,8 +39,8 @@ func TestShard_Query(t *testing.T) {
 
 	ps := s.Query(Tag{Key: "a", Value: "b"}, time.Unix(2, 0), time.Unix(3, 0))
 	assert.Len(t, ps, 2)
-	assert.Equal(t, int64(2), ps[0].Field)
-	assert.Equal(t, int64(3), ps[1].Field)
+	assert.Equal(t, int64(2), ps[0])
+	assert.Equal(t, int64(3), ps[1])
 
 	ps = s.Query(Tag{Key: "g"}, time.Unix(1, 0), time.Unix(2, 0))
 	assert.Empty(t, ps)
@@ -58,6 +58,6 @@ func TestShard_Clear(t *testing.T) {
 
 	s.Clear()
 
-	assert.Empty(t, s.points)
+	assert.Empty(t, s.values)
 	assert.Empty(t, s.index)
 }

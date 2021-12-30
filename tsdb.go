@@ -154,18 +154,18 @@ func (t *TSDB) InsertPoints(points []Point) {
 	}
 }
 
-func (t *TSDB) Query(tag Tag, min, max time.Time) []Point {
+func (t *TSDB) Query(tag Tag, min, max time.Time) []int64 {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	var ps []Point
+	var ps []int64
 	for _, sg := range t.sgs {
 		if !sg.have(min, max) {
 			continue
 		}
 
-		sgp := sg.shard.Query(tag, min, max)
-		ps = append(ps, sgp...)
+		sgv := sg.shard.Query(tag, min, max)
+		ps = append(ps, sgv...)
 	}
 
 	return ps

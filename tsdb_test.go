@@ -108,19 +108,9 @@ func TestTSDB_Query(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	ps := []Point{{
-		Tags:        []Tag{{Key: "a", Value: "b"}},
-		Measurement: "mea",
-		Time:        time.Unix(1, 0),
-		Field:       100,
-	}, {
-		Tags:        []Tag{{Key: "a", Value: "b"}},
-		Measurement: "mea",
-		Time:        time.Unix(30, 0),
-		Field:       200,
-	}}
+	vs := []int64{100, 200}
 	s := NewMockShard(ctrl)
-	s.EXPECT().Query(Tag{Key: "a", Value: "b"}, time.Unix(0, 0), time.Unix(30, 0)).Return(ps).Times(1)
+	s.EXPECT().Query(Tag{Key: "a", Value: "b"}, time.Unix(0, 0), time.Unix(30, 0)).Return(vs).Times(1)
 
 	sgs := []shardGroup{{
 		min:   time.Unix(0, 0),
@@ -134,7 +124,7 @@ func TestTSDB_Query(t *testing.T) {
 
 	db := TSDB{sgs: sgs}
 	r := db.Query(Tag{Key: "a", Value: "b"}, time.Unix(0, 0), time.Unix(30, 0))
-	assert.Equal(t, ps, r)
+	assert.Equal(t, vs, r)
 }
 
 func TestTSDB_GC(t *testing.T) {

@@ -59,10 +59,10 @@ func (mr *MockShardMockRecorder) Insert(point interface{}) *gomock.Call {
 }
 
 // Query mocks base method.
-func (m *MockShard) Query(tag Tag, min, max time.Time) []Point {
+func (m *MockShard) Query(tag Tag, min, max time.Time) []int64 {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Query", tag, min, max)
-	ret0, _ := ret[0].([]Point)
+	ret0, _ := ret[0].([]int64)
 	return ret0
 }
 
