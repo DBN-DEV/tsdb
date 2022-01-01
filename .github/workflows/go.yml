@@ -17,6 +17,9 @@ jobs:
       with:
         go-version: 1.17
 
+    - name: Gen-test-dep
+      run: make gen-test-dep
+
     - name: Run coverage
       run: go test -race -coverprofile=coverage.txt -covermode=atomic
 
