@@ -7,9 +7,9 @@ type Tag struct {
 	Value string
 }
 
-type Point struct {
+type Point[T any] struct {
 	Measurement string
 	Tags        []Tag
 	Time        time.Time
-	Field       int64
+	Field       T
 }

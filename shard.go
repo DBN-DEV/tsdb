@@ -5,46 +5,38 @@ import (
 	"time"
 )
 
-type Shard interface {
-	Insert(point Point)
-	Query(tag Tag, min, max time.Time) []int64
-	Clear()
-}
-
-var _ Shard = (*MemShard)(nil)
-
-type value struct {
+type value[T any] struct {
 	t time.Time
-	v int64
+	v T
 }
 
-type MemShard struct {
-	values []value
+type MemShard[T any] struct {
+	values []value[T]
 
 	// {key: {value: [offset1, offset2]}}
 	index map[string]map[string][]int
 	mu    sync.RWMutex
 }
 
-func NewMemShard() *MemShard {
-	return &MemShard{
+func NewMemShard[T any]() *MemShard[T] {
+	return &MemShard[T]{
 		index: map[string]map[string][]int{},
 	}
 }
 
-func (s *MemShard) Insert(p Point) {
+func (s *MemShard[T]) Insert(p Point[T]) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	offset := len(s.values)
-	s.values = append(s.values, value{t: p.Time, v: p.Field})
+	s.values = append(s.values, value[T]{t: p.Time, v: p.Field})
 
 	for _, tag := range p.Tags {
 		s.updateIndex(offset, tag)
 	}
 }
 
-func (s *MemShard) updateIndex(offset int, tag Tag) {
+func (s *MemShard[T]) updateIndex(offset int, tag Tag) {
 	if keyM, ok := s.index[tag.Key]; ok {
 		if offsets, ok := keyM[tag.Value]; ok {
 			keyM[tag.Value] = append(offsets, offset)
@@ -58,7 +50,7 @@ func (s *MemShard) updateIndex(offset int, tag Tag) {
 	s.index[tag.Key] = map[string][]int{tag.Value: {offset}}
 }
 
-func (s *MemShard) Query(tag Tag, min, max time.Time) []int64 {
+func (s *MemShard[T]) Query(tag Tag, min, max time.Time) []T {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -72,7 +64,7 @@ func (s *MemShard) Query(tag Tag, min, max time.Time) []int64 {
 		return nil
 	}
 
-	var ps []int64
+	var ps []T
 	for _, offset := range offsets {
 		p := s.values[offset]
 		if p.t.Before(min) || p.t.After(max) {
@@ -85,7 +77,7 @@ func (s *MemShard) Query(tag Tag, min, max time.Time) []int64 {
 	return ps
 }
 
-func (s *MemShard) Clear() {
+func (s *MemShard[T]) Clear() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 

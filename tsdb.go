@@ -7,21 +7,21 @@ import (
 
 const _shardGroupDuration = time.Minute
 
-type shardGroup struct {
+type shardGroup[T any] struct {
 	// [min, max)
 	max   time.Time
 	min   time.Time
-	shard Shard
+	shard *MemShard[T]
 }
 
-func newShardGroup(t time.Time, round time.Duration) shardGroup {
-	sg := shardGroup{shard: NewMemShard()}
+func newShardGroup[T any](t time.Time, round time.Duration) shardGroup[T] {
+	sg := shardGroup[T]{shard: NewMemShard[T]()}
 	sg.initTime(t, round)
 
 	return sg
 }
 
-func (g *shardGroup) initTime(t time.Time, round time.Duration) {
+func (g *shardGroup[T]) initTime(t time.Time, round time.Duration) {
 	rounded := t.Round(round)
 
 	if rounded.Sub(t) >= 0 {
@@ -35,7 +35,7 @@ func (g *shardGroup) initTime(t time.Time, round time.Duration) {
 	}
 }
 
-func (g *shardGroup) contains(t time.Time) bool {
+func (g *shardGroup[T]) contains(t time.Time) bool {
 	// [min, max)
 	if g.min.Before(t) && g.max.After(t) {
 		return true
@@ -48,7 +48,7 @@ func (g *shardGroup) contains(t time.Time) bool {
 	return false
 }
 
-func (g *shardGroup) have(min, max time.Time) bool {
+func (g *shardGroup[T]) have(min, max time.Time) bool {
 	// [min, max)
 	if g.min.Before(min) && g.max.After(min) {
 		return true
@@ -65,7 +65,7 @@ func (g *shardGroup) have(min, max time.Time) bool {
 	return false
 }
 
-type TSDB struct {
+type TSDB[T any] struct {
 	rd time.Duration
 	mu sync.RWMutex
 
@@ -73,28 +73,28 @@ type TSDB struct {
 
 	sgDuration time.Duration
 
-	sgs      []shardGroup
-	emptySgs []shardGroup
+	sgs      []shardGroup[T]
+	emptySgs []shardGroup[T]
 }
 
-func NewTSDB(retentionDuration time.Duration) *TSDB {
-	t := &TSDB{rd: retentionDuration, stopGC: make(chan struct{}), sgDuration: _shardGroupDuration}
+func NewTSDB[T any](retentionDuration time.Duration) *TSDB[T] {
+	t := &TSDB[T]{rd: retentionDuration, stopGC: make(chan struct{}), sgDuration: _shardGroupDuration}
 
 	go t.gcProc()
 
 	return t
 }
 
-func (t *TSDB) getShardGroup(ti time.Time) shardGroup {
+func (t *TSDB[T]) getShardGroup(ti time.Time) shardGroup[T] {
 	for _, sg := range t.sgs {
 		if sg.contains(ti) {
 			return sg
 		}
 	}
 
-	var sg shardGroup
+	var sg shardGroup[T]
 	if len(t.emptySgs) == 0 {
-		sg = newShardGroup(ti, t.sgDuration)
+		sg = newShardGroup[T](ti, t.sgDuration)
 	} else {
 		// pop a shardGroup from used groups
 		sg = t.emptySgs[len(t.emptySgs)-1]
@@ -107,13 +107,13 @@ func (t *TSDB) getShardGroup(ti time.Time) shardGroup {
 	return sg
 }
 
-func (t *TSDB) gc() {
+func (t *TSDB[T]) gc() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
 	now := time.Now()
 
-	var sgs []shardGroup
+	var sgs []shardGroup[T]
 	for _, sg := range t.sgs {
 		if now.Sub(sg.max) > t.rd {
 			sg.shard.Clear()
@@ -126,7 +126,7 @@ func (t *TSDB) gc() {
 	t.sgs = sgs
 }
 
-func (t *TSDB) gcProc() {
+func (t *TSDB[T]) gcProc() {
 	ticker := time.NewTicker(t.sgDuration)
 	defer ticker.Stop()
 
@@ -140,11 +140,11 @@ func (t *TSDB) gcProc() {
 	}
 }
 
-func (t *TSDB) Stop() {
+func (t *TSDB[T]) Stop() {
 	t.stopGC <- struct{}{}
 }
 
-func (t *TSDB) InsertPoints(points []Point) {
+func (t *TSDB[T]) InsertPoints(points []Point[T]) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 
@@ -154,11 +154,11 @@ func (t *TSDB) InsertPoints(points []Point) {
 	}
 }
 
-func (t *TSDB) Query(tag Tag, min, max time.Time) []int64 {
+func (t *TSDB[T]) Query(tag Tag, min, max time.Time) []T {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	var ps []int64
+	var ps []T
 	for _, sg := range t.sgs {
 		if !sg.have(min, max) {
 			continue
