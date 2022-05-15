@@ -1,8 +1,11 @@
 package tsdb
 
 import (
+	"github.com/cespare/xxhash"
 	"sync"
 )
+
+const _partitionNum = 16
 
 // value 保存时间和值
 type value[T any] struct {
@@ -41,6 +44,12 @@ type partition[T any] struct {
 	store map[string]*entry[T]
 }
 
+func newPartition[T any]() *partition[T] {
+	store := make(map[string]*entry[T])
+
+	return &partition[T]{store: store}
+}
+
 // write 往分片中写入数据
 func (p *partition[T]) write(key string, values []value[T]) {
 	p.mu.RLock()
@@ -64,8 +73,22 @@ func (p *partition[T]) write(key string, values []value[T]) {
 	p.store[key] = e
 }
 
-type Shard[T any] struct {
+type shard[T any] struct {
 	mu sync.RWMutex
 
-	partitions []partition[T]
+	partitions []*partition[T]
+}
+
+func newShard[T any]() *shard[T] {
+	partitions := make([]*partition[T], 0, _partitionNum)
+
+	for i := 0; i < _partitionNum; i++ {
+		partitions = append(partitions, newPartition[T]())
+	}
+
+	return &shard[T]{partitions: partitions}
+}
+
+func (s *shard[T]) getPartitions(key string) *partition[T] {
+	return s.partitions[int(xxhash.Sum64([]byte(key))%uint64(len(s.partitions)))]
 }

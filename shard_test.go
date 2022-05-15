@@ -18,7 +18,7 @@ func TestEntry_Add(t *testing.T) {
 }
 
 func TestPartition_Write(t *testing.T) {
-	p := partition[int]{store: make(map[string]*entry[int])}
+	p := newPartition[int]()
 
 	// 新 key 写入
 	p.write("a", []value[int]{{100, 200}})
@@ -31,4 +31,10 @@ func TestPartition_Write(t *testing.T) {
 	expect = make(map[string]*entry[int])
 	expect["a"] = newEntry([]value[int]{{100, 200}, {300, 400}})
 	assert.Equal(t, expect, p.store)
+}
+
+func TestShard_GetPartition(t *testing.T) {
+	s := newShard[int]()
+	p := s.getPartitions("a")
+	assert.NotNil(t, p)
 }
