@@ -1,42 +1,86 @@
-package memtsdb
+package tsdb
 
 import (
+	"context"
+	"math/rand"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
-func TestMemShardRace(t *testing.T) {
-	s := NewMemShard[int]()
-
+func TestEntry_Add_Race(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	wg.Add(1)
-	go func() {
-		for i := 0; i < 1000; i++ {
-			ti := time.Unix(int64(i), 0)
-			p := Point[int]{Tags: []Tag{{Key: "a", Value: "b"}}, Time: ti, Field: 100}
-			s.Insert(p)
-		}
-		wg.Done()
-	}()
+	var e entry[int]
+	var total int64
+	num := 10
+	for i := 0; i < num; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					e.add([]value[int]{{100, 200}})
+					atomic.AddInt64(&total, 1)
+					time.Sleep(100 * time.Microsecond)
+				}
+			}
+		}()
+	}
 
-	wg.Add(1)
-	go func() {
-		for i := 0; i < 1000; i++ {
-			ti := time.Unix(int64(i), 0)
-			s.Query(Tag{Key: "a", Value: "b"}, ti, ti)
-		}
-		wg.Done()
-	}()
+	time.Sleep(time.Second)
 
-	wg.Add(1)
-	go func() {
-		for i := 0; i < 1000; i++ {
-			s.Clear()
-		}
-		wg.Done()
-	}()
-
+	cancel()
 	wg.Wait()
+
+	assert.Len(t, e.values, int(total))
+}
+
+func TestPartition_Write_Race(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+
+	p := partition[int]{store: make(map[string]*entry[int])}
+	series := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"}
+	seriesTotal := make(map[string]*int64)
+	for _, s := range series {
+		var total int64
+		seriesTotal[s] = &total
+	}
+	num := 10
+	for i := 0; i < num; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					key := series[rand.Intn(len(series))]
+					p.write(key, []value[int]{{100, 200}})
+					total := seriesTotal[key]
+					atomic.AddInt64(total, 1)
+					time.Sleep(100 * time.Microsecond)
+				}
+			}
+		}()
+	}
+
+	time.Sleep(time.Second)
+
+	cancel()
+	wg.Wait()
+
+	for s, e := range p.store {
+		total := seriesTotal[s]
+		assert.Len(t, e.values, int(*total))
+	}
 }

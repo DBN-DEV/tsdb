@@ -1,63 +1,34 @@
-package memtsdb
+package tsdb
 
 import (
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestShard_updateIndex(t *testing.T) {
-	s := NewMemShard[int]()
-
-	s.updateIndex(1, Tag{Key: "a", Value: "b"})
-	assert.Equal(t, []int{1}, s.index["a"]["b"])
-
-	s.updateIndex(2, Tag{Key: "a", Value: "b"})
-	assert.Equal(t, []int{1, 2}, s.index["a"]["b"])
-
-	s.updateIndex(3, Tag{Key: "a", Value: "c"})
-	assert.Equal(t, []int{3}, s.index["a"]["c"])
+func TestNewEntry(t *testing.T) {
+	e := newEntry([]value[int]{{100, 200}})
+	assert.Len(t, e.values, 1)
 }
 
-func TestShard_Insert(t *testing.T) {
-	s := NewMemShard[int]()
-
-	s.Insert(Point[int]{Tags: []Tag{{Key: "a", Value: "b"}, {Key: "c", Value: "d"}}, Field: 0})
-	assert.Len(t, s.values, 1)
-	assert.Equal(t, []int{0}, s.index["a"]["b"])
-	assert.Equal(t, []int{0}, s.index["c"]["d"])
+func TestEntry_Add(t *testing.T) {
+	var e entry[int]
+	e.add([]value[int]{{200, 400}})
+	assert.Len(t, e.values, 1)
 }
 
-func TestShard_Query(t *testing.T) {
-	s := NewMemShard[int]()
+func TestPartition_Write(t *testing.T) {
+	p := partition[int]{store: make(map[string]*entry[int])}
 
-	s.Insert(Point[int]{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 1, Time: time.Unix(1, 0)})
-	s.Insert(Point[int]{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 2, Time: time.Unix(2, 0)})
-	s.Insert(Point[int]{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 3, Time: time.Unix(3, 0)})
-	s.Insert(Point[int]{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 10, Time: time.Unix(10, 0)})
+	// 新 key 写入
+	p.write("a", []value[int]{{100, 200}})
+	expect := make(map[string]*entry[int])
+	expect["a"] = newEntry([]value[int]{{100, 200}})
+	assert.Equal(t, expect, p.store)
 
-	ps := s.Query(Tag{Key: "a", Value: "b"}, time.Unix(2, 0), time.Unix(3, 0))
-	assert.Len(t, ps, 2)
-	assert.Equal(t, 2, ps[0])
-	assert.Equal(t, 3, ps[1])
-
-	ps = s.Query(Tag{Key: "g"}, time.Unix(1, 0), time.Unix(2, 0))
-	assert.Empty(t, ps)
-
-	ps = s.Query(Tag{Key: "a", Value: "c"}, time.Unix(1, 0), time.Unix(2, 0))
-	assert.Empty(t, ps)
-}
-
-func TestShard_Clear(t *testing.T) {
-	s := NewMemShard[int]()
-
-	s.Insert(Point[int]{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 1, Time: time.Unix(1, 0)})
-	s.Insert(Point[int]{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 2, Time: time.Unix(2, 0)})
-	s.Insert(Point[int]{Tags: []Tag{{Key: "a", Value: "b"}}, Field: 3, Time: time.Unix(3, 0)})
-
-	s.Clear()
-
-	assert.Empty(t, s.values)
-	assert.Empty(t, s.index)
+	// 写入已经存在的 key
+	p.write("a", []value[int]{{300, 400}})
+	expect = make(map[string]*entry[int])
+	expect["a"] = newEntry([]value[int]{{100, 200}, {300, 400}})
+	assert.Equal(t, expect, p.store)
 }

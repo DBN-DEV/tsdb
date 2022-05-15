@@ -1,4 +1,4 @@
-package memtsdb
+package tsdb
 
 import "time"
 

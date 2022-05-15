@@ -1,86 +1,71 @@
-package memtsdb
+package tsdb
 
 import (
 	"sync"
-	"time"
 )
 
+// value 保存时间和值
 type value[T any] struct {
-	t time.Time
-	v T
+	unixNano int64
+	v        T
 }
 
-type MemShard[T any] struct {
+// entry 保存 values，目的减少写入已存在系列的数据的锁争用
+type entry[T any] struct {
+	mu sync.RWMutex
+
 	values []value[T]
-
-	// {key: {value: [offset1, offset2]}}
-	index map[string]map[string][]int
-	mu    sync.RWMutex
 }
 
-func NewMemShard[T any]() *MemShard[T] {
-	return &MemShard[T]{
-		index: map[string]map[string][]int{},
-	}
+// newEntry copy value 并构建一个新的 entry
+func newEntry[T any](vs []value[T]) *entry[T] {
+	values := make([]value[T], 0, len(vs))
+	values = append(values, vs...)
+
+	return &entry[T]{values: values}
 }
 
-func (s *MemShard[T]) Insert(p Point[T]) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+// add 往 entry 中写入数据
+func (e *entry[T]) add(values []value[T]) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 
-	offset := len(s.values)
-	s.values = append(s.values, value[T]{t: p.Time, v: p.Field})
-
-	for _, tag := range p.Tags {
-		s.updateIndex(offset, tag)
-	}
+	e.values = append(e.values, values...)
 }
 
-func (s *MemShard[T]) updateIndex(offset int, tag Tag) {
-	if keyM, ok := s.index[tag.Key]; ok {
-		if offsets, ok := keyM[tag.Value]; ok {
-			keyM[tag.Value] = append(offsets, offset)
-			return
-		}
+// partition hash ring 的一个分片，目的是减少新新系列的锁争用
+type partition[T any] struct {
+	mu sync.RWMutex
+	// 存储系列和值
+	// {"series ex:host=A,region=SH":[value1, value2]}
+	store map[string]*entry[T]
+}
 
-		keyM[tag.Value] = []int{offset}
+// write 往分片中写入数据
+func (p *partition[T]) write(key string, values []value[T]) {
+	p.mu.RLock()
+	e := p.store[key]
+	p.mu.RUnlock()
+	if e != nil {
+		// 大部分情况会走进这个 if 里面，如果 系列 已经存在
+		e.add(values)
 		return
 	}
 
-	s.index[tag.Key] = map[string][]int{tag.Value: {offset}}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	// 因为中间有一段过程没锁，可能有别的协程已经写入，所以再检查一遍
+	if e := p.store[key]; e != nil {
+		e.add(values)
+		return
+	}
+
+	e = newEntry(values)
+	p.store[key] = e
 }
 
-func (s *MemShard[T]) Query(tag Tag, min, max time.Time) []T {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+type Shard[T any] struct {
+	mu sync.RWMutex
 
-	keyM, ok := s.index[tag.Key]
-	if !ok {
-		return nil
-	}
-
-	offsets, ok := keyM[tag.Value]
-	if !ok {
-		return nil
-	}
-
-	var ps []T
-	for _, offset := range offsets {
-		p := s.values[offset]
-		if p.t.Before(min) || p.t.After(max) {
-			continue
-		}
-
-		ps = append(ps, p.v)
-	}
-
-	return ps
-}
-
-func (s *MemShard[T]) Clear() {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.values = s.values[:0]
-	s.index = make(map[string]map[string][]int)
+	partitions []partition[T]
 }
