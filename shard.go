@@ -93,3 +93,9 @@ func newShard[T any]() *shard[T] {
 func (s *shard[T]) getPartitions(key string) *partition[T] {
 	return s.partitions[int(xxhash.Sum64([]byte(key))%uint64(len(s.partitions)))]
 }
+
+func (s *shard[T]) writeMulti(values map[string][]value[T]) {
+	for k, v := range values {
+		s.getPartitions(k).write(k, v)
+	}
+}
