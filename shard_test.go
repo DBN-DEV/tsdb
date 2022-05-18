@@ -34,13 +34,13 @@ func TestPartition_Write(t *testing.T) {
 }
 
 func TestShard_GetPartition(t *testing.T) {
-	s := newShard[int]()
+	s := newShard[int](0, 0)
 	p := s.getPartitions("a")
 	assert.NotNil(t, p)
 }
 
 func TestShard_WriteMulti(t *testing.T) {
-	s := newShard[int]()
+	s := newShard[int](0, 0)
 	s.writeMulti(map[string][]value[int]{"a": {{100, 200}, {300, 400}}, "c": {{300, 400}}})
 
 	p := s.getPartitions("a")
@@ -49,4 +49,13 @@ func TestShard_WriteMulti(t *testing.T) {
 	p = s.getPartitions("c")
 	assert.Len(t, p.store, 1)
 	assert.Len(t, p.store["c"].values, 1)
+}
+
+func TestShard_Contains(t *testing.T) {
+	s := newShard[int](10, 20)
+
+	assert.True(t, s.contains(10))
+	assert.True(t, s.contains(11))
+	assert.False(t, s.contains(20))
+	assert.False(t, s.contains(21))
 }

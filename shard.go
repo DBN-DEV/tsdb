@@ -1,9 +1,8 @@
 package tsdb
 
 import (
-	"sync"
-
 	"github.com/cespare/xxhash"
+	"sync"
 )
 
 const _partitionNum = 16
@@ -75,19 +74,21 @@ func (p *partition[T]) write(key string, values []value[T]) {
 }
 
 type shard[T any] struct {
-	mu sync.RWMutex
+	// [min, max)
+	maxUnixNano int64
+	minUnixNano int64
 
 	partitions []*partition[T]
 }
 
-func newShard[T any]() *shard[T] {
+func newShard[T any](minUnixNano, maxUnixNano int64) *shard[T] {
 	partitions := make([]*partition[T], 0, _partitionNum)
 
 	for i := 0; i < _partitionNum; i++ {
 		partitions = append(partitions, newPartition[T]())
 	}
 
-	return &shard[T]{partitions: partitions}
+	return &shard[T]{minUnixNano: minUnixNano, maxUnixNano: maxUnixNano, partitions: partitions}
 }
 
 func (s *shard[T]) getPartitions(key string) *partition[T] {
@@ -98,4 +99,13 @@ func (s *shard[T]) writeMulti(values map[string][]value[T]) {
 	for k, v := range values {
 		s.getPartitions(k).write(k, v)
 	}
+}
+
+func (s *shard[T]) contains(unixNano int64) bool {
+	// [min, max)
+	if unixNano >= s.minUnixNano && unixNano < s.maxUnixNano {
+		return true
+	}
+
+	return false
 }
