@@ -89,7 +89,7 @@ func TestShard_WriteMulti_Race(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup
 
-	s := newShard[int](0, 0)
+	s := newShard[int]()
 	series := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"}
 	seriesTotal := make(map[string]*int64)
 	for _, s := range series {
