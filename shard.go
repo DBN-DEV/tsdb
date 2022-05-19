@@ -36,6 +36,20 @@ func (e *entry[T]) add(values []value[T]) {
 	e.values = append(e.values, values...)
 }
 
+// removeBefore 删除小于 unixNano 的数据
+func (e *entry[T]) removeBefore(unixNano int64) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	values := make([]value[T], 0, len(e.values))
+	for _, v := range e.values {
+		if v.unixNano >= unixNano {
+			values = append(values, v)
+		}
+	}
+	e.values = values
+}
+
 // partition hash ring 的一个分片，目的是减少新新系列的锁争用
 type partition[T any] struct {
 	mu sync.RWMutex

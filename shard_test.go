@@ -17,6 +17,13 @@ func TestEntry_Add(t *testing.T) {
 	assert.Len(t, e.values, 1)
 }
 
+func TestEntry_RemoveBefore(t *testing.T) {
+	var e entry[int]
+	e.add([]value[int]{{100, 100}, {200, 200}, {300, 300}})
+	e.removeBefore(200)
+	assert.Equal(t, []value[int]{{200, 200}, {300, 300}}, e.values)
+}
+
 func TestPartition_Write(t *testing.T) {
 	p := newPartition[int]()
 
