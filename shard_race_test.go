@@ -43,6 +43,47 @@ func TestEntry_Add_Race(t *testing.T) {
 	assert.Len(t, e.values, int(total))
 }
 
+func TestEntry_RemoveBefore_Race(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var wg sync.WaitGroup
+
+	var e entry[int]
+	var total int64
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				e.add([]value[int]{{300, 100}})
+				atomic.AddInt64(&total, 1)
+				time.Sleep(100 * time.Microsecond)
+			}
+		}
+	}()
+	go func() {
+		wg.Add(1)
+		defer wg.Done()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			default:
+				e.removeBefore(200)
+				time.Sleep(100 * time.Microsecond)
+			}
+		}
+	}()
+
+	time.Sleep(time.Second)
+	cancel()
+	wg.Wait()
+
+	assert.Len(t, e.values, int(total))
+}
+
 func TestPartition_Write_Race(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	var wg sync.WaitGroup

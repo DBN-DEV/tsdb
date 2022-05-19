@@ -1,8 +1,9 @@
 package tsdb
 
 import (
-	"github.com/cespare/xxhash"
 	"sync"
+
+	"github.com/cespare/xxhash"
 )
 
 const _partitionNum = 16
