@@ -40,6 +40,18 @@ func TestPartition_Write(t *testing.T) {
 	assert.Equal(t, expect, p.store)
 }
 
+func TestPartition_RemoveBefore(t *testing.T) {
+	p := newPartition[int]()
+
+	p.write("a", []value[int]{{100, 200}})
+	p.removeBefore(200)
+	assert.Empty(t, p.store["a"].values)
+
+	// 检查 slice 和 map 缩容
+	p.removeBefore(200)
+	assert.Empty(t, p.store)
+}
+
 func TestShard_GetPartition(t *testing.T) {
 	s := newShard[int]()
 	p := s.getPartitions("a")

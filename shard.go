@@ -88,6 +88,21 @@ func (p *partition[T]) write(key string, values []value[T]) {
 	p.store[key] = e
 }
 
+func (p *partition[T]) removeBefore(unixNano int64) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	store := make(map[string]*entry[T], len(p.store))
+	for k, e := range p.store {
+		e.removeBefore(unixNano)
+		// cap = 0 说明上次 remove 的时候已经没有 value ， 较大可能后续也没有 value ，就不加入 store 了
+		if cap(e.values) != 0 {
+			store[k] = e
+		}
+	}
+	p.store = store
+}
+
 type shard[T any] struct {
 	partitions []*partition[T]
 }
