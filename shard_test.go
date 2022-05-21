@@ -52,6 +52,18 @@ func TestPartition_RemoveBefore(t *testing.T) {
 	assert.Empty(t, p.store)
 }
 
+func TestShard_RemoveBefore(t *testing.T) {
+	s := newShard[int]()
+	s.writeMulti(map[string][]value[int]{"a": {{100, 200}, {300, 400}}, "c": {{300, 400}}})
+	s.removeBefore(400)
+
+	for _, p := range s.partitions {
+		for _, e := range p.store {
+			assert.Empty(t, e.values)
+		}
+	}
+}
+
 func TestShard_GetPartition(t *testing.T) {
 	s := newShard[int]()
 	p := s.getPartitions("a")

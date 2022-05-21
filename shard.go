@@ -117,6 +117,12 @@ func newShard[T any]() *shard[T] {
 	return &shard[T]{partitions: partitions}
 }
 
+func (s *shard[T]) removeBefore(unixNano int64) {
+	for _, p := range s.partitions {
+		p.removeBefore(unixNano)
+	}
+}
+
 func (s *shard[T]) getPartitions(key string) *partition[T] {
 	return s.partitions[int(xxhash.Sum64([]byte(key))%uint64(len(s.partitions)))]
 }
