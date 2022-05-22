@@ -32,3 +32,43 @@ func TestTSDB_WritePoints(t *testing.T) {
 	err = db.WritePoints(points)
 	assert.ErrorIs(t, err, ErrPointMissingTag)
 }
+
+func TestTSDB_Stop(t *testing.T) {
+	stop := make(chan struct{}, 1)
+	db := TSDB[int]{stop: stop}
+	db.Stop()
+
+	assert.Eventually(t, func() bool {
+		<-stop
+		return true
+	}, time.Second, time.Microsecond)
+}
+
+func TestTSDB_GC(t *testing.T) {
+	db := New[int](time.Millisecond)
+
+	ti := time.Now().Add(10 * time.Minute)
+	point1 := NewPoint[int]([]Tag{{Key: "cpu", Value: "#0"}}, time.Unix(100, 0), 100)
+	point2 := NewPoint[int]([]Tag{{Key: "cpu", Value: "#0"}}, ti, 100)
+	points := []Point[int]{point1, point2}
+
+	err := db.WritePoints(points)
+	assert.Nil(t, err)
+
+	time.Sleep(2 * time.Millisecond)
+
+	var seen bool
+	for _, p := range db.s.partitions {
+		p.mu.RLock()
+		for s, e := range p.store {
+			e.mu.RLock()
+			if s == "cpu=#0" {
+				assert.Len(t, e.values, 1)
+				seen = true
+			}
+			e.mu.RUnlock()
+		}
+		p.mu.RUnlock()
+	}
+	assert.True(t, seen)
+}

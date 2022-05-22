@@ -7,13 +7,19 @@ import (
 type TSDB[T any] struct {
 	retentionPolicy time.Duration
 
+	stop chan struct{}
+
 	s *shard[T]
 }
 
 func New[T any](retentionPolicy time.Duration) *TSDB[T] {
 	s := newShard[T]()
+	stop := make(chan struct{})
+	db := &TSDB[T]{retentionPolicy: retentionPolicy, s: s, stop: stop}
 
-	return &TSDB[T]{retentionPolicy: retentionPolicy, s: s}
+	go db.gc()
+
+	return db
 }
 
 func (db *TSDB[T]) WritePoints(points []Point[T]) error {
@@ -35,4 +41,23 @@ func (db *TSDB[T]) WritePoints(points []Point[T]) error {
 
 	db.s.writeMulti(values)
 	return nil
+}
+
+func (db *TSDB[T]) Stop() {
+	db.stop <- struct{}{}
+}
+
+func (db *TSDB[T]) gc() {
+	ticker := time.NewTicker(db.retentionPolicy)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-db.stop:
+			return
+		case <-ticker.C:
+			remove := time.Now().Add(-db.retentionPolicy).UnixNano()
+			db.s.removeBefore(remove)
+		}
+	}
 }
