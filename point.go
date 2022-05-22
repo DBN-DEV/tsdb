@@ -21,7 +21,7 @@ type Point[T any] struct {
 }
 
 // NewPoint New 一个 point ，tag key 不能重复，重复时以前者为准
-func NewPoint[T any](ts []Tag, t time.Time, field T) *Point[T] {
+func NewPoint[T any](ts []Tag, t time.Time, field T) Point[T] {
 	tags := make([]Tag, 0, len(ts))
 	key := make(map[string]struct{})
 	for _, tag := range ts {
@@ -31,14 +31,14 @@ func NewPoint[T any](ts []Tag, t time.Time, field T) *Point[T] {
 		}
 	}
 
-	return &Point[T]{tags: tags, time: t, field: field}
+	return Point[T]{tags: tags, time: t, field: field}
 }
 
-func (p *Point[T]) sortTags() {
+func (p Point[T]) sortTags() {
 	sort.Slice(p.tags, func(i, j int) bool { return p.tags[i].Key < p.tags[j].Key })
 }
 
-func (p *Point[T]) Series() string {
+func (p Point[T]) Series() string {
 	if len(p.tags) == 0 {
 		return ""
 	}
