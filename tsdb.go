@@ -7,7 +7,8 @@ import (
 type TSDB[T any] struct {
 	retentionPolicy time.Duration
 
-	stop chan struct{}
+	stop     chan struct{}
+	isClosed bool
 
 	s *shard[T]
 }
@@ -23,6 +24,10 @@ func New[T any](retentionPolicy time.Duration) *TSDB[T] {
 }
 
 func (db *TSDB[T]) WritePoints(points []Point[T]) error {
+	if db.isClosed {
+		return ErrDBClosed
+	}
+
 	values := make(map[string][]value[T], len(points))
 	for _, point := range points {
 		v := value[T]{unixNano: point.time.UnixNano(), v: point.field}
@@ -45,6 +50,7 @@ func (db *TSDB[T]) WritePoints(points []Point[T]) error {
 
 func (db *TSDB[T]) Stop() {
 	db.stop <- struct{}{}
+	db.isClosed = true
 }
 
 func (db *TSDB[T]) gc() {

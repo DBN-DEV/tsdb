@@ -31,20 +31,13 @@ func TestTSDB_WritePoints(t *testing.T) {
 	points = []Point[int]{point}
 	err = db.WritePoints(points)
 	assert.ErrorIs(t, err, ErrPointMissingTag)
+
+	db.isClosed = true
+	err = db.WritePoints(points)
+	assert.ErrorIs(t, err, ErrDBClosed)
 }
 
-func TestTSDB_Stop(t *testing.T) {
-	stop := make(chan struct{}, 1)
-	db := TSDB[int]{stop: stop}
-	db.Stop()
-
-	assert.Eventually(t, func() bool {
-		<-stop
-		return true
-	}, time.Second, time.Microsecond)
-}
-
-func TestTSDB_GC(t *testing.T) {
+func TestTSDB_GCAndStop(t *testing.T) {
 	db := New[int](time.Millisecond)
 
 	ti := time.Now().Add(10 * time.Minute)
@@ -71,4 +64,7 @@ func TestTSDB_GC(t *testing.T) {
 		p.mu.RUnlock()
 	}
 	assert.True(t, seen)
+
+	db.Stop()
+	assert.True(t, db.isClosed)
 }
