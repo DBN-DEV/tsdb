@@ -20,22 +20,25 @@ type Point[T any] struct {
 	field T
 }
 
-// NewPoint New 一个 point ，tag key 不能重复，重复时以前者为准
-func NewPoint[T any](ts []Tag, t time.Time, field T) Point[T] {
-	tags := make([]Tag, 0, len(ts))
-	key := make(map[string]struct{})
-	for _, tag := range ts {
-		if _, ok := key[tag.Key]; !ok {
-			tags = append(tags, tag)
-			key[tag.Key] = struct{}{}
-		}
-	}
-
+// NewPoint New 一个 point ，tag key 不能重复，重复时以后者为准
+func NewPoint[T any](tags []Tag, t time.Time, field T) Point[T] {
+	ts := make([]Tag, len(tags))
+	copy(ts, tags)
 	return Point[T]{tags: tags, time: t, field: field}
 }
 
-func (p Point[T]) sortTags() {
-	sort.Slice(p.tags, func(i, j int) bool { return p.tags[i].Key < p.tags[j].Key })
+func (p *Point[T]) deduplicateTags() {
+	sort.SliceStable(p.tags, func(i, j int) bool { return p.tags[i].Key < p.tags[j].Key })
+
+	var i int
+	for j := 1; j < len(p.tags); j++ {
+		v := p.tags[j]
+		if v.Key != p.tags[i].Key {
+			i++
+		}
+		p.tags[i] = v
+	}
+	p.tags = p.tags[:i+1]
 }
 
 func (p Point[T]) Series() string {
@@ -43,7 +46,7 @@ func (p Point[T]) Series() string {
 		return ""
 	}
 
-	p.sortTags()
+	p.deduplicateTags()
 
 	var b strings.Builder
 	// 一个 tag 至少三个字符
