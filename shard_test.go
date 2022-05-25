@@ -24,6 +24,13 @@ func TestEntry_RemoveBefore(t *testing.T) {
 	assert.Equal(t, []value[int]{{200, 200}, {300, 300}}, e.values)
 }
 
+func TestEntry_ValuesBetween(t *testing.T) {
+	var e entry[int]
+	e.add([]value[int]{{50, 50}, {100, 100}, {200, 200}, {300, 300}, {400, 400}})
+	values := e.valuesBetween(100, 300)
+	assert.Equal(t, []value[int]{{100, 100}, {200, 200}, {300, 300}}, values)
+}
+
 func TestPartition_Write(t *testing.T) {
 	p := newPartition[int]()
 

@@ -51,6 +51,21 @@ func (e *entry[T]) removeBefore(unixNano int64) {
 	e.values = values
 }
 
+// valuesBetween 获取两个时间之间的 value
+func (e *entry[T]) valuesBetween(min, max int64) []value[T] {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	var values []value[T]
+	for _, v := range e.values {
+		if v.unixNano >= min && v.unixNano <= max {
+			values = append(values, v)
+		}
+	}
+
+	return values
+}
+
 // partition hash ring 的一个分片，目的是减少新新系列的锁争用
 type partition[T any] struct {
 	mu sync.RWMutex
