@@ -59,6 +59,17 @@ func TestPartition_RemoveBefore(t *testing.T) {
 	assert.Empty(t, p.store)
 }
 
+func TestPartition_ValuesBetween(t *testing.T) {
+	p := newPartition[int]()
+
+	p.write("a", []value[int]{{50, 50}, {100, 100}, {200, 200}, {300, 300}, {400, 400}})
+	values := p.valuesBetween("a", 100, 300)
+	assert.Equal(t, []value[int]{{100, 100}, {200, 200}, {300, 300}}, values)
+
+	values = p.valuesBetween("b", 400, 600)
+	assert.Empty(t, values)
+}
+
 func TestShard_RemoveBefore(t *testing.T) {
 	s := newShard[int]()
 	s.writeMulti(map[string][]value[int]{"a": {{100, 200}, {300, 400}}, "c": {{300, 400}}})

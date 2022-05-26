@@ -103,6 +103,7 @@ func (p *partition[T]) write(key string, values []value[T]) {
 	p.store[key] = e
 }
 
+// removeBefore 移除时间小于给定值的数据
 func (p *partition[T]) removeBefore(unixNano int64) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -116,6 +117,17 @@ func (p *partition[T]) removeBefore(unixNano int64) {
 		}
 	}
 	p.store = store
+}
+
+func (p *partition[T]) valuesBetween(key string, min, max int64) []value[T] {
+	p.mu.RLock()
+	e := p.store[key]
+	p.mu.RUnlock()
+
+	if e == nil {
+		return nil
+	}
+	return e.valuesBetween(min, max)
 }
 
 type shard[T any] struct {
