@@ -16,17 +16,6 @@ func TestTSDB_WritePoints(t *testing.T) {
 	err := db.WritePoints(points)
 	assert.Nil(t, err)
 
-	var seen bool
-	for _, p := range db.s.partitions {
-		for s, e := range p.store {
-			if s == "cpu=#0" {
-				assert.Len(t, e.values, 2)
-				seen = true
-			}
-		}
-	}
-	assert.True(t, seen)
-
 	point := NewPoint[int]([]Tag{}, time.Unix(100, 0), 100)
 	points = []Point[int]{point}
 	err = db.WritePoints(points)
@@ -51,7 +40,7 @@ func TestTSDB_GCAndStop(t *testing.T) {
 	time.Sleep(2 * time.Millisecond)
 
 	var seen bool
-	for _, p := range db.s.partitions {
+	for _, p := range db.store.partitions {
 		p.mu.RLock()
 		for s, e := range p.store {
 			e.mu.RLock()

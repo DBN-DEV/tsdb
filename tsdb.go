@@ -10,13 +10,16 @@ type TSDB[T any] struct {
 	stop     chan struct{}
 	isClosed bool
 
-	s *shard[T]
+	idx   *index
+	store *shard[T]
 }
 
 func New[T any](retentionPolicy time.Duration) *TSDB[T] {
-	s := newShard[T]()
+	store := newShard[T]()
+	idx := newIndex()
+
 	stop := make(chan struct{})
-	db := &TSDB[T]{retentionPolicy: retentionPolicy, s: s, stop: stop}
+	db := &TSDB[T]{retentionPolicy: retentionPolicy, store: store, idx: idx, stop: stop}
 
 	go db.gc()
 
@@ -28,23 +31,26 @@ func (db *TSDB[T]) WritePoints(points []Point[T]) error {
 		return ErrDBClosed
 	}
 
+	seriesTags := make(map[string][]Tag, len(points))
 	values := make(map[string][]value[T], len(points))
 	for _, point := range points {
-		v := value[T]{unixNano: point.time.UnixNano(), v: point.field}
 		s := point.Series()
-
 		if len(s) == 0 {
 			return ErrPointMissingTag
 		}
 
-		if vs, ok := values[s]; ok {
-			values[s] = append(vs, v)
-		} else {
-			values[s] = []value[T]{v}
+		v := value[T]{unixNano: point.time.UnixNano(), v: point.field}
+		values[s] = append(values[s], v)
+
+		if _, ok := seriesTags[s]; ok {
+			continue
 		}
+		seriesTags[s] = point.tags
 	}
 
-	db.s.writeMulti(values)
+	db.idx.createSeriesIfNotExists(seriesTags)
+	db.store.writeMulti(values)
+
 	return nil
 }
 
@@ -63,7 +69,7 @@ func (db *TSDB[T]) gc() {
 			return
 		case <-ticker.C:
 			remove := time.Now().Add(-db.retentionPolicy).UnixNano()
-			db.s.removeBefore(remove)
+			db.store.removeBefore(remove)
 		}
 	}
 }
