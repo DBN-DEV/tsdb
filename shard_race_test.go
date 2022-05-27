@@ -27,7 +27,7 @@ func TestEntry_Add_Race(t *testing.T) {
 				case <-ctx.Done():
 					return
 				default:
-					e.add([]value[int]{{100, 200}})
+					e.add([]Value[int]{{100, 200}})
 					atomic.AddInt64(&total, 1)
 					time.Sleep(100 * time.Microsecond)
 				}
@@ -57,7 +57,7 @@ func TestEntry_RemoveBefore_Race(t *testing.T) {
 			case <-ctx.Done():
 				return
 			default:
-				e.add([]value[int]{{300, 100}})
+				e.add([]Value[int]{{300, 100}})
 				atomic.AddInt64(&total, 1)
 				time.Sleep(100 * time.Microsecond)
 			}
@@ -106,7 +106,7 @@ func TestPartition_Write_Race(t *testing.T) {
 					return
 				default:
 					key := series[rand.Intn(len(series))]
-					p.write(key, []value[int]{{100, 200}})
+					p.write(key, []Value[int]{{100, 200}})
 					total := seriesTotal[key]
 					atomic.AddInt64(total, 1)
 					time.Sleep(100 * time.Microsecond)
@@ -148,7 +148,7 @@ func TestShard_WriteMulti_Race(t *testing.T) {
 					return
 				default:
 					key := series[rand.Intn(len(series))]
-					s.writeMulti(map[string][]value[int]{key: {{100, 200}}})
+					s.writeMulti(map[string][]Value[int]{key: {{100, 200}}})
 					total := seriesTotal[key]
 					atomic.AddInt64(total, 1)
 					time.Sleep(100 * time.Microsecond)

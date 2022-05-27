@@ -8,8 +8,8 @@ import (
 
 const _partitionNum = 16
 
-// value 保存时间和值
-type value[T any] struct {
+// Value 保存时间和值
+type Value[T any] struct {
 	unixNano int64
 	v        T
 }
@@ -18,19 +18,19 @@ type value[T any] struct {
 type entry[T any] struct {
 	mu sync.RWMutex
 
-	values []value[T]
+	values []Value[T]
 }
 
-// newEntry copy value 并构建一个新的 entry
-func newEntry[T any](vs []value[T]) *entry[T] {
-	values := make([]value[T], 0, len(vs))
+// newEntry copy Value 并构建一个新的 entry
+func newEntry[T any](vs []Value[T]) *entry[T] {
+	values := make([]Value[T], 0, len(vs))
 	values = append(values, vs...)
 
 	return &entry[T]{values: values}
 }
 
 // add 往 entry 中写入数据
-func (e *entry[T]) add(values []value[T]) {
+func (e *entry[T]) add(values []Value[T]) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -42,7 +42,7 @@ func (e *entry[T]) removeBefore(unixNano int64) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	values := make([]value[T], 0, len(e.values))
+	values := make([]Value[T], 0, len(e.values))
 	for _, v := range e.values {
 		if v.unixNano >= unixNano {
 			values = append(values, v)
@@ -51,12 +51,12 @@ func (e *entry[T]) removeBefore(unixNano int64) {
 	e.values = values
 }
 
-// valuesBetween 获取两个时间之间的 value
-func (e *entry[T]) valuesBetween(min, max int64) []value[T] {
+// valuesBetween 获取两个时间之间的 Value
+func (e *entry[T]) valuesBetween(min, max int64) []Value[T] {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
-	var values []value[T]
+	var values []Value[T]
 	for _, v := range e.values {
 		if v.unixNano >= min && v.unixNano <= max {
 			values = append(values, v)
@@ -81,7 +81,7 @@ func newPartition[T any]() *partition[T] {
 }
 
 // write 往分片中写入数据
-func (p *partition[T]) write(key string, values []value[T]) {
+func (p *partition[T]) write(key string, values []Value[T]) {
 	p.mu.RLock()
 	e := p.store[key]
 	p.mu.RUnlock()
@@ -111,7 +111,7 @@ func (p *partition[T]) removeBefore(unixNano int64) {
 	store := make(map[string]*entry[T], len(p.store))
 	for k, e := range p.store {
 		e.removeBefore(unixNano)
-		// cap = 0 说明上次 remove 的时候已经没有 value ， 较大可能后续也没有 value ，就不加入 store 了
+		// cap = 0 说明上次 remove 的时候已经没有 Value ， 较大可能后续也没有 Value ，就不加入 store 了
 		if cap(e.values) != 0 {
 			store[k] = e
 		}
@@ -119,7 +119,7 @@ func (p *partition[T]) removeBefore(unixNano int64) {
 	p.store = store
 }
 
-func (p *partition[T]) valuesBetween(key string, min, max int64) []value[T] {
+func (p *partition[T]) valuesBetween(key string, min, max int64) []Value[T] {
 	p.mu.RLock()
 	e := p.store[key]
 	p.mu.RUnlock()
@@ -154,7 +154,7 @@ func (s *shard[T]) getPartitions(key string) *partition[T] {
 	return s.partitions[int(xxhash.Sum64([]byte(key))%uint64(len(s.partitions)))]
 }
 
-func (s *shard[T]) writeMulti(values map[string][]value[T]) {
+func (s *shard[T]) writeMulti(values map[string][]Value[T]) {
 	for k, v := range values {
 		s.getPartitions(k).write(k, v)
 	}
