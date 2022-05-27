@@ -7,6 +7,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func TestTag_String(t *testing.T) {
+	tag := Tag{Key: "a", Value: "b"}
+	s := tag.String()
+
+	assert.Equal(t, "a=b", s)
+}
+
 func TestPoint_DeduplicateTags(t *testing.T) {
 	p := NewPoint[int]([]Tag{{"b", "b"}, {"a", "a"}, {"a", "c"}}, time.Unix(100, 0), 100)
 	p.deduplicateTags()

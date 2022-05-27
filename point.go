@@ -13,6 +13,17 @@ type Tag struct {
 	Value string
 }
 
+func (t Tag) String() string {
+	var b strings.Builder
+	b.Grow(5)
+
+	b.WriteString(t.Key)
+	b.WriteString("=")
+	b.WriteString(t.Value)
+
+	return b.String()
+}
+
 // Point 代表时序数据的一个点，只读的
 type Point[T any] struct {
 	tags  []Tag
