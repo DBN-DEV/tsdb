@@ -35,3 +35,23 @@ func (i *index) createSeriesIfNotExists(seriesTags map[string][]Tag) {
 		}
 	}
 }
+
+func (i *index) findSeries(tags []Tag) []string {
+	i.mu.RLock()
+	defer i.mu.RUnlock()
+
+	seriesM := make(map[string]struct{})
+	for _, tag := range tags {
+		ss := i.store[tag.String()]
+		for _, s := range ss {
+			seriesM[s] = struct{}{}
+		}
+	}
+
+	series := make([]string, 0, len(seriesM))
+	for s := range seriesM {
+		series = append(series, s)
+	}
+
+	return series
+}

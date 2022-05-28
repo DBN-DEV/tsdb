@@ -26,6 +26,7 @@ func New[T any](retentionPolicy time.Duration) *TSDB[T] {
 	return db
 }
 
+// WritePoints 写入数据点
 func (db *TSDB[T]) WritePoints(points []Point[T]) error {
 	if db.isClosed {
 		return ErrDBClosed
@@ -52,6 +53,22 @@ func (db *TSDB[T]) WritePoints(points []Point[T]) error {
 	db.store.writeMulti(values)
 
 	return nil
+}
+
+// QueryPoints 查询数据点
+func (db *TSDB[T]) QueryPoints(tags []Tag, min, max time.Time) map[string][]Value[T] {
+	series := db.idx.findSeries(tags)
+
+	values := make(map[string][]Value[T])
+	for _, s := range series {
+		p := db.store.getPartitions(s)
+		vs := p.valuesBetween(s, min.UnixNano(), max.UnixNano())
+		if len(vs) != 0 {
+			values[s] = vs
+		}
+	}
+
+	return values
 }
 
 func (db *TSDB[T]) Stop() {
