@@ -18,7 +18,10 @@ func TestIndex_createSeriesIfNotExists(t *testing.T) {
 }
 
 func TestIndex_FindSeries(t *testing.T) {
-	idx := index{store: map[string][]string{"A=B": {"A=B;C=D"}, "C=D": {"A=B;C=D"}}}
+	idx := index{store: map[string][]string{"A=B": {"A=B;C=D"}, "C=D": {"A=B;C=D", "C=D;E=F"}}}
 	series := idx.findSeries([]Tag{{Key: "A", Value: "B"}, {Key: "C", Value: "D"}})
 	assert.Equal(t, []string{"A=B;C=D"}, series)
+
+	series = idx.findSeries([]Tag{{Key: "X", Value: "Y"}})
+	assert.Empty(t, series)
 }

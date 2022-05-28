@@ -40,17 +40,19 @@ func (i *index) findSeries(tags []Tag) []string {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 
-	seriesM := make(map[string]struct{})
+	seriesNum := make(map[string]int)
 	for _, tag := range tags {
 		ss := i.store[tag.String()]
 		for _, s := range ss {
-			seriesM[s] = struct{}{}
+			seriesNum[s] = seriesNum[s] + 1
 		}
 	}
 
-	series := make([]string, 0, len(seriesM))
-	for s := range seriesM {
-		series = append(series, s)
+	var series []string
+	for s, num := range seriesNum {
+		if num == len(tags) {
+			series = append(series, s)
+		}
 	}
 
 	return series
