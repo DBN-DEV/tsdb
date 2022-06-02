@@ -40,7 +40,7 @@ func (db *TSDB[T]) WritePoints(points []Point[T]) error {
 			return ErrPointMissingTag
 		}
 
-		v := Value[T]{unixNano: point.time.UnixNano(), v: point.field}
+		v := Value[T]{UnixNano: point.time.UnixNano(), V: point.field}
 		values[s] = append(values[s], v)
 
 		if _, ok := seriesTags[s]; ok {

@@ -10,8 +10,8 @@ const _partitionNum = 16
 
 // Value 保存时间和值
 type Value[T any] struct {
-	unixNano int64
-	v        T
+	UnixNano int64
+	V        T
 }
 
 // entry 保存 values，目的减少写入已存在系列的数据的锁争用
@@ -44,7 +44,7 @@ func (e *entry[T]) removeBefore(unixNano int64) {
 
 	values := make([]Value[T], 0, len(e.values))
 	for _, v := range e.values {
-		if v.unixNano >= unixNano {
+		if v.UnixNano >= unixNano {
 			values = append(values, v)
 		}
 	}
@@ -58,7 +58,7 @@ func (e *entry[T]) valuesBetween(min, max int64) []Value[T] {
 
 	var values []Value[T]
 	for _, v := range e.values {
-		if v.unixNano >= min && v.unixNano <= max {
+		if v.UnixNano >= min && v.UnixNano <= max {
 			values = append(values, v)
 		}
 	}
